@@ -1,9 +1,10 @@
 import { http, createConfig } from 'wagmi'
 import { baseSepolia } from 'wagmi/chains'
-import { injected } from 'wagmi/connectors'
+import { injected, metaMask, coinbaseWallet } from 'wagmi/connectors'
+import { defineChain } from 'viem'
 
 // Custom Sapphire Testnet chain
-const sapphireTestnet = {
+export const sapphireTestnet = defineChain({
   id: 23295,
   name: 'Oasis Sapphire Testnet',
   nativeCurrency: {
@@ -13,18 +14,19 @@ const sapphireTestnet = {
   },
   rpcUrls: {
     default: { http: ['https://testnet.sapphire.oasis.io'] },
-    public: { http: ['https://testnet.sapphire.oasis.io'] },
   },
   blockExplorers: {
     default: { name: 'Oasis Explorer', url: 'https://explorer.oasis.io/testnet/sapphire' },
   },
   testnet: true,
-} as const
+})
 
 export const config = createConfig({
   chains: [baseSepolia, sapphireTestnet],
   connectors: [
     injected(),
+    metaMask(),
+    coinbaseWallet({ appName: 'DarkBet' }),
   ],
   transports: {
     [baseSepolia.id]: http(),
@@ -32,4 +34,4 @@ export const config = createConfig({
   },
 })
 
-export { baseSepolia, sapphireTestnet }
+export { baseSepolia }
