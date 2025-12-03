@@ -1,0 +1,22 @@
+{
+  "name": "darkbet",
+  "version": "1.0.0",
+  "description": "Private prediction market with TEE-encrypted order book",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:base": "hardhat run scripts/deploy-base.ts --network baseSepolia",
+    "deploy:sapphire": "hardhat run scripts/deploy-sapphire.ts --network sapphireTestnet"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@oasisprotocol/sapphire-hardhat": "^2.19.1",
+    "@types/node": "^20.10.0",
+    "hardhat": "^2.19.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0",
+    "@oasisprotocol/sapphire-contracts": "^0.2.7"
+  }
+}
