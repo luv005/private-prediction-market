@@ -6,4 +6,7 @@ export default defineConfig({
   define: {
     global: 'globalThis',
   },
+  preview: {
+    allowedHosts: ['private-prediction-market-production.up.railway.app'],
+  },
 })
