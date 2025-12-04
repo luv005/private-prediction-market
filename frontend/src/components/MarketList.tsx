@@ -81,6 +81,9 @@ function MarketCard({
   const expiresDate = new Date(Number(expiresAt) * 1000)
   const isExpired = Date.now() > Number(expiresAt) * 1000
 
+  // Hide resolved markets
+  if (resolved) return null
+
   return (
     <button
       onClick={onSelect}

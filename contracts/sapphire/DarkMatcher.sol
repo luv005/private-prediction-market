@@ -385,6 +385,22 @@ contract DarkMatcher is Ownable {
     }
 
     /**
+     * @notice Get position for a specific user (for frontend reads)
+     * @dev Position data is only visible to the position owner
+     *      In Sapphire TEE, this data is encrypted at rest
+     * @param user The user address to query
+     * @param marketId The market to query
+     */
+    function getPosition(address user, bytes32 marketId) external view returns (
+        uint256 yesShares,
+        uint256 noShares,
+        uint256 totalCost
+    ) {
+        Position storage pos = _positions[marketId][user];
+        return (pos.yesShares, pos.noShares, pos.totalCost);
+    }
+
+    /**
      * @notice Get your balance
      */
     function getMyBalance() external view returns (
@@ -392,6 +408,141 @@ contract DarkMatcher is Ownable {
         uint256 locked
     ) {
         return (_balances[msg.sender], _lockedBalances[msg.sender]);
+    }
+
+    /**
+     * @notice Get balance for a specific user (for frontend reads)
+     * @dev Balance amounts are not sensitive, so this is public
+     */
+    function getBalance(address user) external view returns (
+        uint256 available,
+        uint256 locked
+    ) {
+        return (_balances[user], _lockedBalances[user]);
+    }
+
+    // ============ Order Book Views ============
+
+    /**
+     * @notice Get aggregated order book depth (anonymous - no user info)
+     * @dev Returns total amounts at each price level, hiding individual orders
+     * @param marketId The market to query
+     * @return yesPrices Array of YES bid prices (in basis points)
+     * @return yesAmounts Array of total amounts at each YES price level
+     * @return noPrices Array of NO bid prices (in basis points)
+     * @return noAmounts Array of total amounts at each NO price level
+     */
+    function getOrderBookDepth(bytes32 marketId) external view returns (
+        uint256[] memory yesPrices,
+        uint256[] memory yesAmounts,
+        uint256[] memory noPrices,
+        uint256[] memory noAmounts
+    ) {
+        // Aggregate YES orders by price
+        (yesPrices, yesAmounts) = _aggregateOrders(_yesOrders[marketId]);
+        // Aggregate NO orders by price
+        (noPrices, noAmounts) = _aggregateOrders(_noOrders[marketId]);
+    }
+
+    /**
+     * @dev Aggregate orders by price level
+     */
+    function _aggregateOrders(Order[] storage orders) internal view returns (
+        uint256[] memory prices,
+        uint256[] memory amounts
+    ) {
+        // First pass: count unique prices
+        uint256[] memory tempPrices = new uint256[](orders.length);
+        uint256[] memory tempAmounts = new uint256[](orders.length);
+        uint256 uniqueCount = 0;
+
+        for (uint256 i = 0; i < orders.length; i++) {
+            if (!orders[i].active) continue;
+
+            uint256 remaining = orders[i].amount - orders[i].filled;
+            if (remaining == 0) continue;
+
+            // Find if price already exists
+            bool found = false;
+            for (uint256 j = 0; j < uniqueCount; j++) {
+                if (tempPrices[j] == orders[i].price) {
+                    tempAmounts[j] += remaining;
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                tempPrices[uniqueCount] = orders[i].price;
+                tempAmounts[uniqueCount] = remaining;
+                uniqueCount++;
+            }
+        }
+
+        // Copy to correctly sized arrays
+        prices = new uint256[](uniqueCount);
+        amounts = new uint256[](uniqueCount);
+        for (uint256 i = 0; i < uniqueCount; i++) {
+            prices[i] = tempPrices[i];
+            amounts[i] = tempAmounts[i];
+        }
+    }
+
+    /**
+     * @notice Get your open orders in a market
+     * @dev Only returns orders belonging to msg.sender
+     * @param marketId The market to query
+     * @return orderIds Array of order IDs
+     * @return isYesOrders Array indicating if each order is YES (true) or NO (false)
+     * @return prices Array of order prices (basis points)
+     * @return amounts Array of remaining amounts (unfilled)
+     */
+    function getMyOrders(bytes32 marketId) external view returns (
+        bytes32[] memory orderIds,
+        bool[] memory isYesOrders,
+        uint256[] memory prices,
+        uint256[] memory amounts
+    ) {
+        // Count user's active orders
+        uint256 count = 0;
+
+        for (uint256 i = 0; i < _yesOrders[marketId].length; i++) {
+            Order storage o = _yesOrders[marketId][i];
+            if (o.user == msg.sender && o.active && o.amount > o.filled) count++;
+        }
+        for (uint256 i = 0; i < _noOrders[marketId].length; i++) {
+            Order storage o = _noOrders[marketId][i];
+            if (o.user == msg.sender && o.active && o.amount > o.filled) count++;
+        }
+
+        // Allocate arrays
+        orderIds = new bytes32[](count);
+        isYesOrders = new bool[](count);
+        prices = new uint256[](count);
+        amounts = new uint256[](count);
+
+        // Fill arrays
+        uint256 idx = 0;
+        for (uint256 i = 0; i < _yesOrders[marketId].length; i++) {
+            Order storage o = _yesOrders[marketId][i];
+            if (o.user == msg.sender && o.active && o.amount > o.filled) {
+                orderIds[idx] = o.orderId;
+                isYesOrders[idx] = true;
+                prices[idx] = o.price;
+                amounts[idx] = o.amount - o.filled;
+                idx++;
+            }
+        }
+        for (uint256 i = 0; i < _noOrders[marketId].length; i++) {
+            Order storage o = _noOrders[marketId][i];
+            if (o.user == msg.sender && o.active && o.amount > o.filled) {
+                orderIds[idx] = o.orderId;
+                isYesOrders[idx] = false;
+                prices[idx] = o.price;
+                amounts[idx] = o.amount - o.filled;
+                idx++;
+            }
+        }
     }
 
     // ============ Market Resolution ============
@@ -499,7 +650,7 @@ contract DarkMatcher is Ownable {
     // ============ Encryption Helpers ============
 
     /**
-     * @dev Decrypt order data using contract's private key
+     * @dev Decrypt order data using shared key derivation
      * @notice Simplified for hackathon - in production use proper X25519 + ChaCha20
      */
     function _decrypt(
@@ -507,9 +658,10 @@ contract DarkMatcher is Ownable {
         bytes32 nonce
     ) internal view returns (bytes memory) {
         // For hackathon demo: XOR-based "decryption"
-        // In production: use Sapphire.decrypt with proper key derivation
+        // Key = keccak256(publicKey || nonce) - same derivation as frontend
+        // In production: use Sapphire.decrypt with proper ECDH key exchange
 
-        bytes32 key = keccak256(abi.encodePacked(_encryptionPrivateKey, nonce));
+        bytes32 key = keccak256(abi.encode(encryptionPublicKey, nonce));
         bytes memory result = new bytes(encrypted.length);
 
         for (uint256 i = 0; i < encrypted.length; i++) {

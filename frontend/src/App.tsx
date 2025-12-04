@@ -4,6 +4,8 @@ import { ConnectButton } from './components/ConnectButton'
 import { DepositForm } from './components/DepositForm'
 import { MarketList } from './components/MarketList'
 import { BetForm } from './components/BetForm'
+import { OrderBook } from './components/OrderBook'
+import { MyPosition } from './components/MyPosition'
 
 function App() {
   const { isConnected } = useAccount()
@@ -63,17 +65,19 @@ function App() {
               <HowItWorks />
             </div>
 
-            {/* Middle Column - Markets */}
-            <div>
+            {/* Middle Column - Markets + Order Book */}
+            <div className="space-y-6">
               <MarketList
                 onSelectMarket={setSelectedMarketId}
                 selectedMarketId={selectedMarketId}
               />
+              <OrderBook marketId={selectedMarketId} />
             </div>
 
-            {/* Right Column - Bet Form */}
-            <div>
+            {/* Right Column - Bet Form + Position */}
+            <div className="space-y-6">
               <BetForm marketId={selectedMarketId} />
+              <MyPosition marketId={selectedMarketId} />
             </div>
           </div>
         )}

@@ -5,7 +5,7 @@ export const CONTRACTS = {
   USDC: '0x3d82B714401782464CE485789513679d74733B29' as `0x${string}`, // MockUSDC
 
   // Sapphire Testnet
-  DARK_MATCHER: '0xA0C52e05800AdF206a0568eac1fC385B5B9fF25c' as `0x${string}`,
+  DARK_MATCHER: '0xCc2a400Ab1BC3fa0968d8fe5a220b15Ec8E5dB97' as `0x${string}`,
 }
 
 // ABIs (minimal for frontend interactions)
@@ -105,10 +105,34 @@ export const DARK_MATCHER_ABI = [
     ],
   },
   {
+    name: 'getPosition',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'user', type: 'address' },
+      { name: 'marketId', type: 'bytes32' },
+    ],
+    outputs: [
+      { name: 'yesShares', type: 'uint256' },
+      { name: 'noShares', type: 'uint256' },
+      { name: 'totalCost', type: 'uint256' },
+    ],
+  },
+  {
     name: 'getMyBalance',
     type: 'function',
     stateMutability: 'view',
     inputs: [],
+    outputs: [
+      { name: 'available', type: 'uint256' },
+      { name: 'locked', type: 'uint256' },
+    ],
+  },
+  {
+    name: 'getBalance',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
     outputs: [
       { name: 'available', type: 'uint256' },
       { name: 'locked', type: 'uint256' },
@@ -120,6 +144,30 @@ export const DARK_MATCHER_ABI = [
     stateMutability: 'view',
     inputs: [],
     outputs: [{ name: '', type: 'bytes32' }],
+  },
+  {
+    name: 'getOrderBookDepth',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'marketId', type: 'bytes32' }],
+    outputs: [
+      { name: 'yesPrices', type: 'uint256[]' },
+      { name: 'yesAmounts', type: 'uint256[]' },
+      { name: 'noPrices', type: 'uint256[]' },
+      { name: 'noAmounts', type: 'uint256[]' },
+    ],
+  },
+  {
+    name: 'getMyOrders',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'marketId', type: 'bytes32' }],
+    outputs: [
+      { name: 'orderIds', type: 'bytes32[]' },
+      { name: 'isYesOrders', type: 'bool[]' },
+      { name: 'prices', type: 'uint256[]' },
+      { name: 'amounts', type: 'uint256[]' },
+    ],
   },
   {
     name: 'resolveMarket',

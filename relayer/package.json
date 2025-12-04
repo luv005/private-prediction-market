@@ -1,0 +1,17 @@
+{
+  "name": "darkbet-relayer",
+  "version": "1.0.0",
+  "description": "Relayer for DarkBet cross-chain balance syncing",
+  "main": "index.ts",
+  "scripts": {
+    "start": "npx tsx index.ts",
+    "dev": "npx tsx watch index.ts"
+  },
+  "dependencies": {
+    "viem": "^2.7.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
+  }
+}

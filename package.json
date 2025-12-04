@@ -6,7 +6,8 @@
     "compile": "hardhat compile",
     "test": "hardhat test",
     "deploy:base": "hardhat run scripts/deploy-base.ts --network baseSepolia",
-    "deploy:sapphire": "hardhat run scripts/deploy-sapphire.ts --network sapphireTestnet"
+    "deploy:sapphire": "hardhat run scripts/deploy-sapphire.ts --network sapphireTestnet",
+    "demo": "hardhat run scripts/demo-matching.ts --network sapphireTestnet"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",

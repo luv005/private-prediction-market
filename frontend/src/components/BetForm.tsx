@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useAccount, useWriteContract, useReadContract, useChainId } from 'wagmi'
+import { useAccount, useWriteContract, useReadContract, useChainId, useWaitForTransactionReceipt } from 'wagmi'
 import { sapphireTestnet } from '../lib/wagmi'
 import { CONTRACTS, DARK_MATCHER_ABI } from '../lib/contracts'
 import { encryptOrder, parseUSDC, parsePrice, formatUSDC } from '../lib/encryption'
@@ -13,17 +13,21 @@ export function BetForm({ marketId }: BetFormProps) {
   const [price, setPrice] = useState('50') // percentage
   const [amount, setAmount] = useState('')
   const [useEncryption, setUseEncryption] = useState(true)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const { address } = useAccount()
   const chainId = useChainId()
-  const { writeContract } = useWriteContract()
+  const { writeContract, data: hash, isPending, reset } = useWriteContract()
+
+  // Wait for transaction
+  const { isLoading: isConfirming, isSuccess, isError } = useWaitForTransactionReceipt({ hash })
 
   // Get balance on Sapphire
   const { data: balance } = useReadContract({
     address: CONTRACTS.DARK_MATCHER,
     abi: DARK_MATCHER_ABI,
-    functionName: 'getMyBalance',
+    functionName: 'getBalance',
+    args: address ? [address] : undefined,
     chainId: sapphireTestnet.id,
   })
 
@@ -42,48 +46,51 @@ export function BetForm({ marketId }: BetFormProps) {
     functionName: 'getMyPosition',
     args: marketId ? [marketId] : undefined,
     chainId: sapphireTestnet.id,
+    account: address, // Required for msg.sender to work on Sapphire
   })
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!marketId || !amount || !encryptionPubKey) return
 
-    setIsSubmitting(true)
-    try {
-      const amountBigInt = parseUSDC(amount)
-      const priceBigInt = parsePrice(price)
+    setError(null)
+    const amountBigInt = parseUSDC(amount)
+    const priceBigInt = parsePrice(price)
 
-      if (useEncryption) {
-        // Encrypt order before submission
-        const { encrypted, nonce } = encryptOrder(
-          marketId,
-          side === 'yes',
-          priceBigInt,
-          amountBigInt,
-          encryptionPubKey
-        )
+    if (useEncryption) {
+      // Encrypt order before submission
+      const { encrypted, nonce } = encryptOrder(
+        marketId,
+        side === 'yes',
+        priceBigInt,
+        amountBigInt,
+        encryptionPubKey
+      )
 
-        await writeContract({
-          address: CONTRACTS.DARK_MATCHER,
-          abi: DARK_MATCHER_ABI,
-          functionName: 'submitDarkIntent',
-          args: [encrypted, nonce],
-          chainId: sapphireTestnet.id,
-        })
-      } else {
-        // Direct submission (for testing)
-        await writeContract({
-          address: CONTRACTS.DARK_MATCHER,
-          abi: DARK_MATCHER_ABI,
-          functionName: 'submitOrder',
-          args: [marketId, side === 'yes', priceBigInt, amountBigInt],
-          chainId: sapphireTestnet.id,
-        })
-      }
-
-      setAmount('')
-    } finally {
-      setIsSubmitting(false)
+      writeContract({
+        address: CONTRACTS.DARK_MATCHER,
+        abi: DARK_MATCHER_ABI,
+        functionName: 'submitDarkIntent',
+        args: [encrypted, nonce],
+      }, {
+        onSuccess: () => setAmount(''),
+        onError: (err) => setError(err.message),
+      })
+    } else {
+      // Direct submission (for testing)
+      writeContract({
+        address: CONTRACTS.DARK_MATCHER,
+        abi: DARK_MATCHER_ABI,
+        functionName: 'submitOrder',
+        args: [marketId, side === 'yes', priceBigInt, amountBigInt],
+      }, {
+        onSuccess: () => setAmount(''),
+        onError: (err) => setError(err.message),
+      })
     }
+  }
+
+  const getExplorerUrl = (txHash: string) => {
+    return `https://explorer.oasis.io/testnet/sapphire/tx/${txHash}`
   }
 
   if (chainId !== sapphireTestnet.id) {
@@ -218,18 +225,73 @@ export function BetForm({ marketId }: BetFormProps) {
           </span>
         </label>
 
+        {/* Transaction Notifications */}
+        {error && (
+          <div className="bg-red-500/20 border border-red-500 rounded-lg p-3 text-red-400 text-sm">
+            {error.slice(0, 100)}
+            <button onClick={() => { setError(null); reset(); }} className="ml-2 underline">
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {hash && !isSuccess && !isError && (
+          <a
+            href={getExplorerUrl(hash)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block bg-blue-500/20 border border-blue-500 rounded-lg p-3 text-blue-400 text-sm hover:bg-blue-500/30 transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <span>{isConfirming ? 'Confirming transaction...' : 'Transaction sent!'}</span>
+              <span className="underline">View on Explorer</span>
+            </div>
+            <div className="text-xs mt-1 text-blue-300 truncate">{hash}</div>
+          </a>
+        )}
+
+        {isSuccess && (
+          <a
+            href={getExplorerUrl(hash!)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block bg-green-500/20 border border-green-500 rounded-lg p-3 text-green-400 text-sm hover:bg-green-500/30 transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <span>Order submitted successfully!</span>
+              <span className="underline">View on Explorer</span>
+            </div>
+          </a>
+        )}
+
+        {isError && (
+          <a
+            href={getExplorerUrl(hash!)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block bg-red-500/20 border border-red-500 rounded-lg p-3 text-red-400 text-sm hover:bg-red-500/30 transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <span>Transaction failed</span>
+              <span className="underline">View on Explorer</span>
+            </div>
+          </a>
+        )}
+
         {/* Submit */}
         <button
           onClick={handleSubmit}
-          disabled={!amount || isSubmitting}
+          disabled={!amount || isPending || isConfirming}
           className={`w-full py-3 rounded-lg font-medium transition-colors ${
             side === 'yes'
               ? 'bg-accent-green hover:bg-green-600'
               : 'bg-accent-red hover:bg-red-600'
           } disabled:bg-gray-600 disabled:cursor-not-allowed`}
         >
-          {isSubmitting
-            ? 'Submitting...'
+          {isPending
+            ? 'Confirm in wallet...'
+            : isConfirming
+            ? 'Confirming...'
             : useEncryption
             ? `Submit Dark ${side.toUpperCase()} Order`
             : `Submit ${side.toUpperCase()} Order`}
