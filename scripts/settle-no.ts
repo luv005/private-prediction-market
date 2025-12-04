@@ -2,7 +2,7 @@ import { ethers } from "hardhat";
 
 async function main() {
   const DARK_MATCHER_ADDRESS = "0xCc2a400Ab1BC3fa0968d8fe5a220b15Ec8E5dB97";
-  const MARKET_ID = "0xf9da306807d2c050aeb06e5afb2acf9c1c055e2ea9ff46b48a42683e709aecdf";
+  const MARKET_ID = "0xede0ccf66b39f842767242fe8a5c077888d9c95cd84739785a83274d9b30f107";
 
   const users = [
     "0x037948B6310C2966085497604d985e173cE3Dbf7",
