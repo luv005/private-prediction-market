@@ -1,6 +1,7 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@oasisprotocol/sapphire-hardhat";
+import "dotenv/config";
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -12,6 +13,22 @@ const config: HardhatUserConfig = {
       },
       viaIR: true,
     },
+  },
+  etherscan: {
+    apiKey: process.env.BASESCAN_API_KEY || "",
+    customChains: [
+      {
+        network: "baseSepolia",
+        chainId: 84532,
+        urls: {
+          apiURL: "https://api-sepolia.basescan.org/api",
+          browserURL: "https://sepolia.basescan.org",
+        },
+      },
+    ],
+  },
+  sourcify: {
+    enabled: true,
   },
   networks: {
     // Base Sepolia Testnet

@@ -1,11 +1,11 @@
 // Contract addresses - update after deployment
 export const CONTRACTS = {
   // Base Sepolia
-  LIQUIDITY_POOL: '0x0000000000000000000000000000000000000000' as `0x${string}`,
-  USDC: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as `0x${string}`, // Base Sepolia USDC
+  LIQUIDITY_POOL: '0x3afcc7D4EF809539BD0EaB0867D8E5FBc7B32e81' as `0x${string}`,
+  USDC: '0x3d82B714401782464CE485789513679d74733B29' as `0x${string}`, // MockUSDC
 
   // Sapphire Testnet
-  DARK_MATCHER: '0x0000000000000000000000000000000000000000' as `0x${string}`,
+  DARK_MATCHER: '0xA0C52e05800AdF206a0568eac1fC385B5B9fF25c' as `0x${string}`,
 }
 
 // ABIs (minimal for frontend interactions)
